@@ -22,9 +22,9 @@ A command-line tool for uploading Google Takeout archives to S3-compatible stora
 go install github.com/bstardust/google-takeout-s3-importer/cmd/s3-takeout-upload@latest
 ```
 
-### Binary Releases
+<!-- ### Binary Releases
 
-Download the appropriate binary for your platform from the [Releases](https://github.com/bstardust/google-takeout-s3-importer/releases) page.
+Download the appropriate binary for your platform from the [Releases](https://github.com/bstardust/google-takeout-s3-importer/releases) page. -->
 
 ## Usage
 
