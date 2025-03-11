@@ -1,29 +1,52 @@
 package config
 
 import (
-	"encoding/json"
-	"os"
+	"time"
 )
 
+// Config represents the application configuration
 type Config struct {
-	S3Bucket          string `json:"s3_bucket"`
-	S3Region          string `json:"s3_region"`
-	GoogleTakeoutPath string `json:"google_takeout_path"`
+	LogLevel string
+	S3       S3Config
+	Upload   UploadConfig
 }
 
-func LoadConfig(filePath string) (*Config, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
+// S3Config represents S3 connection configuration
+type S3Config struct {
+	Endpoint  string
+	Region    string
+	Bucket    string
+	AccessKey string
+	SecretKey string
+	UseSSL    bool
+	Prefix    string
+}
 
-	config := &Config{}
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(config)
-	if err != nil {
-		return nil, err
-	}
+// UploadConfig represents upload configuration
+type UploadConfig struct {
+	Concurrency      int
+	DryRun           bool
+	Resume           bool
+	JournalPath      string
+	PreserveMetadata bool
+	SkipExisting     bool
+	Timeout          time.Duration
+}
 
-	return config, nil
+// New creates a new configuration with default values
+func New() *Config {
+	return &Config{
+		LogLevel: "info",
+		S3: S3Config{
+			Region: "us-east-1",
+			UseSSL: true,
+		},
+		Upload: UploadConfig{
+			Concurrency:      4,
+			Resume:           true,
+			PreserveMetadata: true,
+			SkipExisting:     true,
+			Timeout:          30 * time.Minute,
+		},
+	}
 }
