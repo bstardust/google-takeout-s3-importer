@@ -48,7 +48,7 @@ func Extract(r io.Reader) (*Data, error) {
 		// Try to get altitude
 		if alt, err := x.Get(exif.GPSAltitude); err == nil {
 			if rational, err := alt.Rat(0); err == nil {
-				data.GPS.Altitude = float64(rational.Num()) / float64(rational.Denom())
+				data.GPS.Altitude = float64(rational.Num().Int64()) / float64(rational.Denom().Int64())
 			}
 		}
 	}
