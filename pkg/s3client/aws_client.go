@@ -19,8 +19,9 @@ import (
 
 // AWSClient represents an S3 client using AWS SDK v1.72.3
 type AWSClient struct {
-	client *s3.S3
-	config Config
+	client   *s3.S3
+	uploader *s3manager.Uploader
+	config   Config
 }
 
 // NewAWS creates a new AWS S3 client
@@ -73,9 +74,20 @@ func NewAWS(ctx context.Context, cfg Config) (S3Interface, error) {
 
 	logger.Info("Successfully connected to S3 endpoint %s, bucket %s using AWS SDK", endpoint, cfg.Bucket)
 
+	// Create S3 client with custom part size configuration
+	uploader := s3manager.NewUploaderWithClient(client, func(u *s3manager.Uploader) {
+		// Set minimum part size to 5MB (B2 requirement)
+		u.PartSize = 5 * 1024 * 1024
+		// Set concurrency to match our app's concurrency
+		u.Concurrency = 4
+		// Disable automatic content-type detection which can cause issues
+		u.LeavePartsOnError = false
+	})
+
 	return &AWSClient{
-		client: client,
-		config: cfg,
+		client:   client,
+		uploader: uploader,
+		config:   cfg,
 	}, nil
 }
 
@@ -96,13 +108,11 @@ func (c *AWSClient) UploadFile(ctx context.Context, reader io.Reader, objectKey 
 		awsMetadata[k] = &value
 	}
 
-	// Use the AWS SDK's Upload utility which handles large files better
-	uploader := s3manager.NewUploaderWithClient(c.client)
-
-	_, err := uploader.UploadWithContext(ctx, &s3manager.UploadInput{
+	// Use the pre-configured uploader instead of creating a new one
+	_, err := c.uploader.UploadWithContext(ctx, &s3manager.UploadInput{
 		Bucket:      aws.String(c.config.Bucket),
 		Key:         aws.String(objectKey),
-		Body:        reader, // Can use io.Reader directly
+		Body:        reader,
 		ContentType: aws.String(contentType),
 		Metadata:    awsMetadata,
 	})
