@@ -13,13 +13,14 @@ type Config struct {
 
 // S3Config represents S3 connection configuration
 type S3Config struct {
-	Endpoint  string
-	Region    string
-	Bucket    string
-	AccessKey string
-	SecretKey string
-	UseSSL    bool
-	Prefix    string
+	Endpoint         string
+	Region           string
+	Bucket           string
+	AccessKey        string
+	SecretKey        string
+	UseSSL           bool
+	Prefix           string
+	DisableChecksums bool
 }
 
 // UploadConfig represents upload configuration

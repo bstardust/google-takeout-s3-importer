@@ -21,7 +21,7 @@ import (
 // Uploader handles the process of uploading files from Google Takeout to S3
 type Uploader struct {
 	ctx      context.Context
-	s3Client *s3client.Client
+	s3Client s3client.S3Interface
 	takeout  *googletakeout.Takeout
 	journal  *journal.Journal
 	pool     *worker.Pool
@@ -41,7 +41,7 @@ type Uploader struct {
 }
 
 // New creates a new Uploader
-func New(ctx context.Context, s3Client *s3client.Client, takeout *googletakeout.Takeout,
+func New(ctx context.Context, s3Client s3client.S3Interface, takeout *googletakeout.Takeout,
 	jnl *journal.Journal, pool *worker.Pool, progress *progress.Reporter,
 	cfg *config.Config) *Uploader {
 

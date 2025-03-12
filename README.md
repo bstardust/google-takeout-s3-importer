@@ -70,6 +70,7 @@ s3-takeout-upload upload \
   --bucket=my-bucket \
   --access-key=YOUR_KEY_ID \
   --secret-key=YOUR_APPLICATION_KEY \
+  --disable-checksums
   path/to/takeout-folder
 ```
 
@@ -124,6 +125,7 @@ s3-takeout-upload upload \
 | `--journal` | Path to journal file for resumable uploads | |
 | `--preserve-metadata` | Preserve file metadata as S3 object metadata | true |
 | `--skip-existing` | Skip files that already exist in the bucket | true |
+| `--disable-checksums` | Disable checksum verification for compatibility with certain S3 services (like Backblaze B2) | false |
 
 ## Environment Variables
 
@@ -180,7 +182,12 @@ For detailed information about retries, use the `--log-level=debug` option.
    - Check your network bandwidth
    - Consider using a geographically closer S3 endpoint
 
-3. **Missing files**:
+3. **Failed uploads with checksum errors** (especially with Backblaze B2):
+   - Use the `--disable-checksums` flag to switch to AWS SDK client for uploads
+   - This is particularly helpful for large files or video files that may have checksum verification issues
+   - Example error: "SignatureDoesNotMatch" or "InvalidDigest" errors from B2
+
+4. **Missing files**:
    - Use `--log-level=debug` to see which files are being processed
    - Check if files were skipped due to `--skip-existing`
    - Verify the input path contains the expected files

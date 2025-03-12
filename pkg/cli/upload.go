@@ -34,6 +34,7 @@ func newUploadCommand(ctx context.Context, cfg *config.Config) *cobra.Command {
 	cmd.Flags().StringVar(&cfg.S3.SecretKey, "secret-key", "", "S3 secret key (required)")
 	cmd.Flags().BoolVar(&cfg.S3.UseSSL, "use-ssl", true, "Use SSL for S3 connection")
 	cmd.Flags().StringVar(&cfg.S3.Prefix, "prefix", "", "Prefix for S3 object keys")
+	cmd.Flags().BoolVar(&cfg.S3.DisableChecksums, "disable-checksums", false, "Disable checksum headers for better compatibility with Backblaze B2 (uses AWS SDK)")
 
 	// Upload options
 	cmd.Flags().IntVar(&cfg.Upload.Concurrency, "concurrency", 4, "Number of concurrent uploads")
@@ -58,13 +59,14 @@ func runUpload(ctx context.Context, cfg *config.Config, args []string) error {
 
 	// Initialize S3 client using the new package
 	s3Config := s3client.Config{
-		Endpoint:  cfg.S3.Endpoint,
-		Region:    cfg.S3.Region,
-		Bucket:    cfg.S3.Bucket,
-		AccessKey: cfg.S3.AccessKey,
-		SecretKey: cfg.S3.SecretKey,
-		UseSSL:    cfg.S3.UseSSL,
-		Prefix:    cfg.S3.Prefix,
+		Endpoint:         cfg.S3.Endpoint,
+		Region:           cfg.S3.Region,
+		Bucket:           cfg.S3.Bucket,
+		AccessKey:        cfg.S3.AccessKey,
+		SecretKey:        cfg.S3.SecretKey,
+		UseSSL:           cfg.S3.UseSSL,
+		Prefix:           cfg.S3.Prefix,
+		DisableChecksums: cfg.S3.DisableChecksums,
 	}
 
 	s3Client, err := s3client.New(ctx, s3Config)

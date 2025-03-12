@@ -2,14 +2,15 @@ package tests
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/bstardust/google-takeout-s3-importer/internal/adapter/googletakeout"
 	"github.com/bstardust/google-takeout-s3-importer/internal/config"
 	"github.com/bstardust/google-takeout-s3-importer/internal/journal"
 	"github.com/bstardust/google-takeout-s3-importer/internal/progress"
+	"github.com/bstardust/google-takeout-s3-importer/internal/uploader"
 	"github.com/bstardust/google-takeout-s3-importer/internal/worker"
 	"github.com/bstardust/google-takeout-s3-importer/pkg/s3client"
 	"github.com/stretchr/testify/assert"
@@ -109,8 +110,13 @@ func TestIntegrationUpload(t *testing.T) {
 	}
 
 	// Check journal has all files marked as completed
-	completed := jnl.ListCompleted()
-	assert.Equal(t, len(files), len(completed), "Not all files were marked as completed in journal")
+	uploadedCount := 0
+	for _, file := range files {
+		if jnl.IsUploaded(file.Path) {
+			uploadedCount++
+		}
+	}
+	assert.Equal(t, len(files), uploadedCount, "Not all files were marked as completed in journal")
 }
 
 func getEnvOrDefault(key, defaultValue string) string {

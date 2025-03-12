@@ -153,3 +153,17 @@ func (j *Journal) Stats() (total int, uploaded int) {
 
 	return total, uploaded
 }
+
+// ListCompleted returns a list of all completed uploads
+func (j *Journal) ListCompleted() []string {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	var completed []string
+	for path, entry := range j.Uploads {
+		if entry.Uploaded {
+			completed = append(completed, path)
+		}
+	}
+	return completed
+}
