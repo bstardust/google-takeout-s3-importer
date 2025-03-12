@@ -1,6 +1,7 @@
 package s3client
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -108,17 +109,46 @@ func (c *AWSClient) UploadFile(ctx context.Context, reader io.Reader, objectKey 
 		awsMetadata[k] = &value
 	}
 
-	// Use the pre-configured uploader instead of creating a new one
-	_, err := c.uploader.UploadWithContext(ctx, &s3manager.UploadInput{
-		Bucket:      aws.String(c.config.Bucket),
-		Key:         aws.String(objectKey),
-		Body:        reader,
-		ContentType: aws.String(contentType),
-		Metadata:    awsMetadata,
-	})
+	// For small files (less than 10MB), use PutObject instead of multipart upload
+	// to avoid the "request body too small" error with B2
+	if size < 10*1024*1024 {
+		// Buffer the file in memory - safe for small files
+		buf := &bytes.Buffer{}
+		if _, err := io.Copy(buf, reader); err != nil {
+			return fmt.Errorf("failed to buffer file: %w", err)
+		}
 
-	if err != nil {
-		return fmt.Errorf("failed to upload file: %w", err)
+		_, err := c.client.PutObjectWithContext(ctx, &s3.PutObjectInput{
+			Bucket:      aws.String(c.config.Bucket),
+			Key:         aws.String(objectKey),
+			Body:        bytes.NewReader(buf.Bytes()),
+			ContentType: aws.String(contentType),
+			Metadata:    awsMetadata,
+		})
+
+		if err != nil {
+			return fmt.Errorf("failed to upload file: %w", err)
+		}
+	} else {
+		// For larger files, use multipart upload with adjusted settings
+		uploader := s3manager.NewUploaderWithClient(c.client, func(u *s3manager.Uploader) {
+			// Backblaze B2 requires at least 5MB parts
+			u.PartSize = 10 * 1024 * 1024 // Use 10MB to be safe
+			u.Concurrency = 4
+			u.LeavePartsOnError = false
+		})
+
+		_, err := uploader.UploadWithContext(ctx, &s3manager.UploadInput{
+			Bucket:      aws.String(c.config.Bucket),
+			Key:         aws.String(objectKey),
+			Body:        reader,
+			ContentType: aws.String(contentType),
+			Metadata:    awsMetadata,
+		})
+
+		if err != nil {
+			return fmt.Errorf("failed to upload file: %w", err)
+		}
 	}
 
 	logger.Debug("Uploaded file to %s (%d bytes)", objectKey, size)

@@ -62,10 +62,15 @@ s3-takeout-upload upload \
   path/to/takeout-folder
 ```
 
-### Uploading Large Video Files to Backblaze B2
+### Backblaze B2 Compatibility Notes
 
-When uploading large video files to Backblaze B2, you may encounter issues with multipart uploads. Use the following settings for best results:
+When using Backblaze B2, there are some specific requirements that differ from AWS S3:
 
+1. Always use the `--disable-checksums` flag to avoid checksum-related errors
+2. If you have a fast internet connection, increasing concurrency can improve throughput:
+   - Try `--concurrency=8` for better performance when uploading many files
+
+Example B2 command:
 ```bash
 s3-takeout-upload upload \
   --endpoint=s3.us-west-004.backblazeb2.com \
@@ -73,11 +78,8 @@ s3-takeout-upload upload \
   --access-key=YOUR_KEY_ID \
   --secret-key=YOUR_APPLICATION_KEY \
   --disable-checksums \
-  --concurrency=2 \
   path/to/takeout-folder
 ```
-
-The `--disable-checksums` flag is essential for compatibility with B2, and reducing concurrency to 2 can help with large file transfers.
 
 ### Using Dry Run Mode
 
