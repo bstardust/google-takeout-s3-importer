@@ -16,23 +16,39 @@ import (
 
 // Metadata represents file metadata
 type Metadata struct {
-	Title            string      `json:"title,omitempty"`
-	Description      string      `json:"description,omitempty"`
-	CreationTime     *time.Time  `json:"creationTime,omitempty"`
-	ModificationTime *time.Time  `json:"modificationTime,omitempty"`
-	GeoData          *GeoData    `json:"geoData,omitempty"`
-	CameraData       *CameraData `json:"cameraData,omitempty"`
-	Tags             []string    `json:"tags,omitempty"`
-	Albums           []string    `json:"albums,omitempty"`
-	People           []string    `json:"people,omitempty"`
-	Source           string      `json:"source,omitempty"`
+	Title          string      `json:"title,omitempty"`
+	Description    string      `json:"description,omitempty"`
+	ImageViews     string      `json:"imageViews,omitempty"`
+	CreationTime   *TimeInfo   `json:"creationTime,omitempty"`
+	PhotoTakenTime *TimeInfo   `json:"photoTakenTime,omitempty"`
+	GeoData        *GeoData    `json:"geoData,omitempty"`
+	GeoDataExif    *GeoData    `json:"geoDataExif,omitempty"`
+	CameraData     *CameraData `json:"cameraData,omitempty"`
+	Tags           []string    `json:"tags,omitempty"`
+	Albums         []string    `json:"albums,omitempty"`
+	People         []Person    `json:"people,omitempty"`
+	Source         string      `json:"source,omitempty"`
+	URL            string      `json:"url,omitempty"`
+}
+
+// TimeInfo represents timestamp information
+type TimeInfo struct {
+	Timestamp string `json:"timestamp"`
+	Formatted string `json:"formatted"`
 }
 
 // GeoData represents geographical data
 type GeoData struct {
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
-	Altitude  float64 `json:"altitude,omitempty"`
+	Latitude      float64 `json:"latitude"`
+	Longitude     float64 `json:"longitude"`
+	Altitude      float64 `json:"altitude,omitempty"`
+	LatitudeSpan  float64 `json:"latitudeSpan,omitempty"`
+	LongitudeSpan float64 `json:"longitudeSpan,omitempty"`
+}
+
+// Person represents a person tag
+type Person struct {
+	Name string `json:"name"`
 }
 
 // CameraData represents camera information
@@ -76,7 +92,10 @@ func (e *Extractor) ExtractFromEXIF(r io.Reader) (*Metadata, error) {
 
 	// Set creation time
 	if exifData.DateTime != nil {
-		metadata.CreationTime = exifData.DateTime
+		metadata.CreationTime = &TimeInfo{
+			Timestamp: exifData.DateTime.Format(time.RFC3339),
+			Formatted: exifData.DateTime.Format(time.RFC3339),
+		}
 	}
 
 	// Set geo data
@@ -160,11 +179,14 @@ func (e *Extractor) mergeMetadata(target, source *Metadata) {
 	if target.CreationTime == nil {
 		target.CreationTime = source.CreationTime
 	}
-	if target.ModificationTime == nil {
-		target.ModificationTime = source.ModificationTime
+	if target.PhotoTakenTime == nil {
+		target.PhotoTakenTime = source.PhotoTakenTime
 	}
 	if target.GeoData == nil {
 		target.GeoData = source.GeoData
+	}
+	if target.GeoDataExif == nil {
+		target.GeoDataExif = source.GeoDataExif
 	}
 	if target.CameraData == nil {
 		target.CameraData = source.CameraData
@@ -181,6 +203,9 @@ func (e *Extractor) mergeMetadata(target, source *Metadata) {
 	if target.Source == "" {
 		target.Source = source.Source
 	}
+	if target.URL == "" {
+		target.URL = source.URL
+	}
 }
 
 // ToMap converts metadata to a map for S3 object metadata
@@ -193,11 +218,16 @@ func (m *Metadata) ToMap() map[string]string {
 	if m.Description != "" {
 		result["description"] = m.Description
 	}
-	if m.CreationTime != nil {
-		result["creation-time"] = m.CreationTime.Format(time.RFC3339)
+	if m.ImageViews != "" {
+		result["image-views"] = m.ImageViews
 	}
-	if m.ModificationTime != nil {
-		result["modification-time"] = m.ModificationTime.Format(time.RFC3339)
+	if m.CreationTime != nil {
+		result["creation-time"] = m.CreationTime.Timestamp
+		result["creation-time-formatted"] = m.CreationTime.Formatted
+	}
+	if m.PhotoTakenTime != nil {
+		result["photo-taken-time"] = m.PhotoTakenTime.Timestamp
+		result["photo-taken-time-formatted"] = m.PhotoTakenTime.Formatted
 	}
 	if m.GeoData != nil {
 		result["geo-latitude"] = fmt.Sprintf("%f", m.GeoData.Latitude)
@@ -221,10 +251,17 @@ func (m *Metadata) ToMap() map[string]string {
 		result["albums"] = strings.Join(m.Albums, ",")
 	}
 	if len(m.People) > 0 {
-		result["people"] = strings.Join(m.People, ",")
+		var names []string
+		for _, person := range m.People {
+			names = append(names, person.Name)
+		}
+		result["people"] = strings.Join(names, ",")
 	}
 	if m.Source != "" {
 		result["source"] = m.Source
+	}
+	if m.URL != "" {
+		result["url"] = m.URL
 	}
 
 	return result

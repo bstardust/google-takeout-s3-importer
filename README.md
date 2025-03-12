@@ -22,6 +22,17 @@ A command-line tool for uploading Google Takeout archives to S3-compatible stora
 go install github.com/bstardust/google-takeout-s3-importer/cmd/s3-takeout-upload@latest
 ```
 
+Run the following command to compile the code from the root directory:
+
+```bash
+go build -o s3-takeout-upload ./cmd/s3-takeout-upload
+```
+
+Add the s3-takeout-upload to your command, mac example below:
+```bash
+sudo mv s3-takeout-upload /usr/local/bin/
+```
+
 <!-- ### Binary Releases
 
 Download the appropriate binary for your platform from the [Releases](https://github.com/bstardust/google-takeout-s3-importer/releases) page. -->
@@ -48,6 +59,17 @@ s3-takeout-upload upload \
   --access-key=YOUR_ACCESS_KEY \
   --secret-key=YOUR_SECRET_KEY \
   --region=us-east-1 \
+  path/to/takeout-folder
+```
+
+### Using Backblaze B2 Example
+
+```bash
+s3-takeout-upload upload \
+  --endpoint=s3.us-west-004.backblazeb2.com \
+  --bucket=my-bucket \
+  --access-key=YOUR_KEY_ID \
+  --secret-key=YOUR_APPLICATION_KEY \
   path/to/takeout-folder
 ```
 
