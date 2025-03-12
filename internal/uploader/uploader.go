@@ -6,6 +6,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -73,8 +74,14 @@ func (u *Uploader) Run() error {
 		u.totalBytes += file.Size
 	}
 
+	// Set the archive name in the progress reporter
+	if u.progress != nil && len(files) > 0 {
+		// Access the archive field directly or add a method to set it
+		u.progress.SetArchive(files[0].Archive)
+	}
+
 	logger.Info("Starting upload to %s bucket %s", u.s3Client.GetEndpoint(), u.s3Client.GetBucketName())
-	logger.Info("Found %d files to process (%.2f MB total)", u.totalFiles, float64(u.totalBytes)/(1024*1024))
+	logger.Info("Found %d files to process (%.2f MB total) in archive: %s", u.totalFiles, float64(u.totalBytes)/(1024*1024), files[0].Archive)
 
 	// Start progress reporting
 	if u.progress != nil {
@@ -85,8 +92,9 @@ func (u *Uploader) Run() error {
 	// Process each file
 	var errCount int32
 
-	// Create a channel for collecting errors
-	errCh := make(chan error, u.totalFiles)
+	// Use a mutex-protected slice instead of a channel
+	var errMutex sync.Mutex
+	var uploadErrors []error
 
 	// Submit upload tasks to the worker pool
 	for _, file := range files {
@@ -112,12 +120,17 @@ func (u *Uploader) Run() error {
 
 			// Upload the file
 			if err := u.uploadFile(fileCtx, mediaFile); err != nil {
-				logger.Error("Failed to upload %s: %v", mediaFile.Path, err)
+				logger.Error("Failed to upload %s from archive %s: %v", mediaFile.Path, mediaFile.Archive, err)
 				atomic.AddInt32(&u.failedFiles, 1)
 				if u.progress != nil {
 					u.progress.Error(mediaFile.Path, err)
 				}
-				errCh <- fmt.Errorf("failed to upload %s: %w", mediaFile.Path, err)
+
+				// Use mutex to safely collect errors instead of a channel
+				errMutex.Lock()
+				uploadErrors = append(uploadErrors, fmt.Errorf("failed to upload %s: %w", mediaFile.Path, err))
+				errMutex.Unlock()
+
 				atomic.AddInt32(&errCount, 1)
 			}
 		})
@@ -125,17 +138,17 @@ func (u *Uploader) Run() error {
 
 	// Wait for all tasks to complete
 	u.pool.Wait()
-	close(errCh)
 
-	// Handle errors
+	// Handle errors without using a channel
 	var err error
 	if errCount > 0 {
-		// Collect all errors
+		// Format error messages from the slice
 		var errMsgs []string
-		for e := range errCh {
-			errMsgs = append(errMsgs, e.Error())
-			if len(errMsgs) >= 10 {
-				errMsgs = append(errMsgs, fmt.Sprintf("... and %d more errors", errCount-10))
+		for i, e := range uploadErrors {
+			if i < 10 {
+				errMsgs = append(errMsgs, e.Error())
+			} else {
+				errMsgs = append(errMsgs, fmt.Sprintf("... and %d more errors", len(uploadErrors)-10))
 				break
 			}
 		}
@@ -153,6 +166,10 @@ func (u *Uploader) Run() error {
 // uploadFile handles uploading a single file to S3
 func (u *Uploader) uploadFile(ctx context.Context, file *googletakeout.MediaFile) error {
 	filePath := file.Path
+	archiveName := file.Archive
+
+	// Add archive name to log messages
+	logger.Debug("Processing %s from archive %s", filePath, archiveName)
 
 	// Check if the file already exists in S3
 	if u.config.Upload.SkipExisting {
@@ -188,7 +205,7 @@ func (u *Uploader) uploadFile(ctx context.Context, file *googletakeout.MediaFile
 			u.progress.Complete(filePath)
 		}
 		if u.journal != nil {
-			u.journal.MarkUploaded(filePath)
+			u.journal.MarkUploaded(filePath, file.Archive)
 		}
 		return nil
 	}
@@ -275,10 +292,11 @@ func (u *Uploader) uploadFile(ctx context.Context, file *googletakeout.MediaFile
 
 	// Mark as uploaded in journal
 	if u.journal != nil {
-		u.journal.MarkUploaded(filePath)
+		u.journal.MarkUploaded(filePath, file.Archive)
 	}
 
-	logger.Debug("Successfully uploaded %s (%.2f MB)", filePath, float64(file.Size)/(1024*1024))
+	logger.Debug("Successfully uploaded %s from archive %s (%.2f MB)",
+		filePath, archiveName, float64(file.Size)/(1024*1024))
 	return nil
 }
 

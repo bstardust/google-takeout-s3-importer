@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,9 +18,10 @@ import (
 
 // Takeout represents a Google Takeout archive
 type Takeout struct {
-	fsys       fs.FS
-	mediaFiles map[string]*MediaFile
-	extractor  *metadata.Extractor
+	fsys        fs.FS
+	mediaFiles  map[string]*MediaFile
+	extractor   *metadata.Extractor
+	archivePath string // Add this field to track the source archive
 }
 
 // MediaFile represents a media file in the takeout
@@ -27,6 +29,7 @@ type MediaFile struct {
 	Path     string
 	Metadata *metadata.Metadata
 	Size     int64
+	Archive  string // Add this field to track source archive
 }
 
 // New creates a new Takeout adapter
@@ -45,9 +48,10 @@ func New(ctx context.Context, path string, isZip bool) (*Takeout, error) {
 	}
 
 	t := &Takeout{
-		fsys:       fsys,
-		mediaFiles: make(map[string]*MediaFile),
-		extractor:  metadata.NewExtractor(time.UTC),
+		fsys:        fsys,
+		mediaFiles:  make(map[string]*MediaFile),
+		extractor:   metadata.NewExtractor(time.UTC),
+		archivePath: path, // Store the archive path
 	}
 
 	if err := t.scanTakeout(ctx); err != nil {
@@ -82,8 +86,9 @@ func (t *Takeout) scanTakeout(ctx context.Context) error {
 			}
 
 			t.mediaFiles[path] = &MediaFile{
-				Path: path,
-				Size: info.Size(),
+				Path:    path,
+				Size:    info.Size(),
+				Archive: filepath.Base(t.archivePath), // Set the archive name
 			}
 
 			// Extract metadata
@@ -101,7 +106,7 @@ func (t *Takeout) scanTakeout(ctx context.Context) error {
 
 // ListFiles returns all media files in the takeout
 func (t *Takeout) ListFiles() []*MediaFile {
-	files := make([]*MediaFile, 0, len(t.mediaFiles))
+	var files []*MediaFile
 	for _, file := range t.mediaFiles {
 		files = append(files, file)
 	}

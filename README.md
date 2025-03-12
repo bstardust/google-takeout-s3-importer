@@ -67,8 +67,6 @@ s3-takeout-upload upload \
 When using Backblaze B2, there are some specific requirements that differ from AWS S3:
 
 1. Always use the `--disable-checksums` flag to avoid checksum-related errors
-2. If you have a fast internet connection, increasing concurrency can improve throughput:
-   - Try `--concurrency=8` for better performance when uploading many files
 
 Example B2 command:
 ```bash
@@ -91,6 +89,7 @@ s3-takeout-upload upload \
   --bucket=my-photos-bucket \
   --access-key=YOUR_ACCESS_KEY \
   --secret-key=YOUR_SECRET_KEY \
+  --max-archives=5 \
   --dry-run \
   path/to/takeout-*.zip
 ```
@@ -126,13 +125,18 @@ s3-takeout-upload upload \
 | `--secret-key` | S3 secret key | (required) |
 | `--use-ssl` | Use SSL for S3 connection | true |
 | `--prefix` | Prefix for S3 object keys | |
-| `--concurrency` | Number of concurrent uploads | 4 |
+| `--concurrency` | Number of concurrent file uploads within each archive | 4 |
+| `--max-archives` | Maximum number of archives to process simultaneously | 3 |
 | `--dry-run` | Simulate upload without actually uploading | false |
 | `--resume` | Resume previous upload if interrupted | true |
 | `--journal` | Path to journal file for resumable uploads | |
 | `--preserve-metadata` | Preserve file metadata as S3 object metadata | true |
 | `--skip-existing` | Skip files that already exist in the bucket | true |
 | `--disable-checksums` | Disable checksum verification for compatibility with certain S3 services (like Backblaze B2) | false |
+
+1. If you have a fast internet connection, increasing concurrency can improve throughput:
+   - Try `--concurrency=8` for better performance when uploading many files within each archive
+   - Use `--max-archives=5` to process more archives simultaneously if you have sufficient system resources
 
 ## Environment Variables
 

@@ -18,6 +18,7 @@ type Reporter struct {
 	startTime      time.Time
 	lastUpdateTime time.Time
 	updateInterval time.Duration
+	archive        string
 }
 
 // New creates a new progress reporter
@@ -107,6 +108,14 @@ func (r *Reporter) updateProgress() {
 		eta = "unknown"
 	}
 
-	logger.Info("Progress: %.1f%% (%d/%d, %d completed, %d skipped, %d errors) ETA: %s",
-		percentage, processed, r.total, r.completed, r.skipped, r.errors, eta)
+	logger.Info("Progress: %.1f%% (%d/%d, %d completed, %d skipped, %d errors) ETA: %s | Archive: %s",
+		percentage, processed, r.total, r.completed, r.skipped, r.errors, eta, r.archive)
+}
+
+// SetArchive sets the current archive being processed
+func (r *Reporter) SetArchive(archive string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.archive = archive
 }

@@ -25,13 +25,14 @@ type S3Config struct {
 
 // UploadConfig represents upload configuration
 type UploadConfig struct {
-	Concurrency      int
-	DryRun           bool
-	Resume           bool
-	JournalPath      string
-	PreserveMetadata bool
-	SkipExisting     bool
-	Timeout          time.Duration
+	Concurrency           int
+	MaxConcurrentArchives int
+	DryRun                bool
+	Resume                bool
+	JournalPath           string
+	PreserveMetadata      bool
+	SkipExisting          bool
+	Timeout               time.Duration
 }
 
 // New creates a new configuration with default values
@@ -43,11 +44,12 @@ func New() *Config {
 			UseSSL: true,
 		},
 		Upload: UploadConfig{
-			Concurrency:      4,
-			Resume:           true,
-			PreserveMetadata: true,
-			SkipExisting:     true,
-			Timeout:          30 * time.Minute,
+			Concurrency:           4,
+			MaxConcurrentArchives: 3,
+			Resume:                true,
+			PreserveMetadata:      true,
+			SkipExisting:          true,
+			Timeout:               30 * time.Minute,
 		},
 	}
 }
